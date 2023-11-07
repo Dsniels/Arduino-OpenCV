@@ -1,5 +1,6 @@
 import cv2
 import requests
+import face_recognition
 
 
 #NOTA: si al ejecutar el programa obtienes un error en la direccion ip,
@@ -50,6 +51,9 @@ def set_awb(url: str, awb: int=1):
     except:
         print("SET_QUALITY: something went wrong")
     return awb
+
+
+
 
 
 #Funcion inicio
