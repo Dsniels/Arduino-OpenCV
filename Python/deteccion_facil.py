@@ -2,10 +2,17 @@ import cv2
 import requests
 import  face_recognition
 import os
+import serial
+import time
+import numpy as np
+#serial = serial.Serial('COM3', 115200, timeout= 1)
+#time.sleep(2)
 
 
 
-#NOTA: si al ejecutar el programa obtienes un error en la direccion ip,
+
+
+#NOTA: si al ejecutar el programa obtienes un error en la direccion ip,iiiiiiiiiiiiiiiiii
 #significa que cambio por lo que tienes que ir al editor arduino o abrir el monitor serial en vscode
 # y presionar reset en la camara para obtener la nueva direccion ip de la camara
 
@@ -27,12 +34,7 @@ def Codificar_Rostros(folder_path):
 
 
 
-#Direccion url de la camara
-URL = "http://192.168.1.6"
-AWB = True 
 
-#Obtener video
-cap = cv2.VideoCapture(URL + ":81/stream")
 
 # Ruta de la carpeta que contiene imágenes de referencia
 folder_path = "D:/Repositories/Arduino-OpenCV/Images"
@@ -50,6 +52,12 @@ for filename in os.listdir(folder_path):
             known_face_encodings.append(face_encoding[0])
             known_face_names.append(name)
 
+#Direccion url de la camara
+URL = "http://192.168.1.21"
+AWB = True 
+
+#Obtener video
+cap = cv2.VideoCapture(URL + ":81/stream")
 #Definir Resolucion
 def set_resolution(url: str, index: int=1, verbose: bool=False):
     try:
@@ -89,37 +97,29 @@ if __name__ == '__main__':
     set_resolution(URL, index=8)
 
     while True:
+        cap = cv2.VideoCapture(URL + "/capture")
         if cap.isOpened():
 
             ret, frame = cap.read()
 
-            if ret:
-                gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            if ret == False: break
+            frame = cv2.flip(frame, 1)
 
-                # Encuentra todas las ubicaciones de los rostros en el fotograma
-                face_locations = face_recognition.face_locations(gray)
-                
-            for (top, right, bottom, left) in face_locations:
-                # Codifica el rostro detectado
-                face_encodings = face_recognition.face_encodings(frame, [(top, right, bottom, left)])
+            face_locations = face_recognition.face_locations(frame)
 
-                # Comprueba si hay alguna coincidencia con las codificaciones conocidas
-                if face_encodings:
-                    face_encoding = face_encodings[0]
-                    matches = face_recognition.compare_faces(known_face_encodings, face_encoding)
+            if face_locations != []:
+                for face_location in face_locations:
+                    face_frame_encodings = face_recognition.face_encodings(frame, known_face_locations=[face_location])[0]
+                    face_frame_encodings = np.array(face_frame_encodings)
+                    face_image_encodings = np.array(face_image_encodings)
+                    match = face_recognition.compare_faces([face_frame_encodings], face_image_encodings)
 
-                    if True in matches:
-                        # Si se encuentra una coincidencia, dibuja un rectángulo verde
-                        color = (0, 255, 0)  # Verde
+                    if match == True:
+                        color = (125, 220, 0)
                     else:
-                        # Si no hay coincidencia, dibuja un rectangulo rojo
-                        color = (0, 0, 255)  # Rojo
-                else:
-                    # Si no se pudieron codificar los rostros, dibuja un rectangulo rojo
-                    color = (0, 0, 255)  # Rojo
-
-                cv2.rectangle(frame, (left, top), (right, bottom), color, 2)
-
+                        color = (50,50,255)
+                    
+                    cv2.rectangle(frame, (face_location[3], face_location[0] ), (face_location[1], face_location[2]), color, 2)
                                              
             cv2.imshow("Video", frame)
 
@@ -129,5 +129,7 @@ if __name__ == '__main__':
             if key == 27:
                 break
 
+
     cap.release() #libera las imagenes capturadas en la memoria y evitar problemas
     cv2.destroyAllWindows()
+        #serial.close()
