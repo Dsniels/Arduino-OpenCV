@@ -4,117 +4,162 @@ import face_recognition
 import os
 import serial
 import time
-import numpy as np
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
 
-serial = serial.Serial('COM4', 115200, timeout= 1)
-time.sleep(2)
+# Configuración global
+URL = "http://192.168.1.21"
+PUERTO_STREAM = ":81/stream"
+SERIAL_PORT = 'COM4'
+USUARIOS = set()
+nombres_detectados = set()
 
+def generar_pdf():
+    pdf_nombre = "Personas detectadas.pdf"
+
+    c = canvas.Canvas(pdf_nombre, pagesize=letter)
+
+    c.drawString(100, 750, "Personas detectadas:")
+
+    Coordenada = 720  # Coordenada Y inicial para imprimir los nombres
+
+    for usuario in USUARIOS:
+        c.drawString(100, Coordenada, usuario)
+        Coordenada -= 15  # Espacio vertical entre cada nombre
+
+    c.save()
+
+    print(f"Los nombres de personas detectadas se han guardado en {pdf_nombre}")
 # Codificación de rostros
-def Codificar_Rostros(folder_path):
+def codificar_rostros(folder_path):
     face_encodings = []
     face_names = []
 
     for filename in os.listdir(folder_path):
-        if filename.endswith(".jpg") or filename.endswith(".png"):
+        if filename.lower().endswith((".jpg", ".png")):
             name = os.path.splitext(filename)[0]
             image = face_recognition.load_image_file(os.path.join(folder_path, filename))
             face_encoding = face_recognition.face_encodings(image)
-            if len(face_encoding) > 0:
+            if face_encoding:
                 face_encodings.append(face_encoding[0])
                 face_names.append(name)
 
     return face_encodings, face_names
 
-# Direccion URL de la camara
-URL = "http://192.168.1.21"
-AWB = True 
+# Definir Resolución
+def set_resolution(url, index=8, verbose=False):
+    resolutions = {
+        10: 'UXGA(1600x1200)',
+        9: 'SXGA(1280x1024)',
+        8: 'XGA(1024x768)',
+        7: 'SVGA(800x600)',
+        6: 'VGA(640x480)',
+        5: 'CIF(400x296)',
+        4: 'QVGA(320x240)',
+        3: 'HQVGA(240x176)',
+        0: 'QQVGA(160x120)'
+    }
+    if verbose:
+        print("Available resolutions:")
+        for idx, resolution in resolutions.items():
+            print(f"{idx}: {resolution}")
 
-# Obtener video
-cap = cv2.VideoCapture(URL + ":81/stream")
-
-# Ruta de la carpeta que contiene imágenes de referencia
-folder_path = "D:/Repositories/Arduino-OpenCV/Images"
-
-# Cargar las codificaciones de referencia
-known_face_encodings, known_face_names = Codificar_Rostros(folder_path)
-
-# Definir Resolucion
-def set_resolution(url: str, index: int=1, verbose: bool=False):
-    try:
-        if verbose:
-            resolutions = "10: UXGA(1600x1200)\n9: SXGA(1280x1024)\n8: XGA(1024x768)\n7: SVGA(800x600)\n6: VGA(640x480)\n5: CIF(400x296)\n4: QVGA(320x240)\n3: HQVGA(240x176)\n0: QQVGA(160x120)"
-            print("available resolutions\n{}".format(resolutions))
-
-        if index in [10, 9, 8, 7, 6, 5, 4, 3, 0]:
-            requests.get(url + "/control?var=framesize&val={}".format(index))
-        else:
-            print("Wrong index")
-    except:
-        print("SET_RESOLUTION: something went wrong")
+    if index in resolutions:
+        requests.get(f"{url}/control?var=framesize&val={index}")
+    else:
+        print("Wrong index")
 
 # Definir Calidad
-def set_quality(url: str, value: int=1, verbose: bool=False):
-    try:
-        if value >= 10 and value <=63:
-            requests.get(url + "/control?var=quality&val={}".format(value))
-    except:
-        print("SET_QUALITY: something went wrong")
+def set_quality(url, value=1):
+    if 10 <= value <= 63:
+        requests.get(f"{url}/control?var=quality&val={value}")
 
 # Balanceo automático de blancos para una mejor imagen según la iluminación
-def set_awb(url: str, awb: int=1):
-    try:
-        awb = not awb
-        requests.get(url + "/control?var=awb&val={}".format(1 if awb else 0))
-    except:
-        print("SET_QUALITY: something went wrong")
+def set_awb(url, awb=True):
+    awb = not awb
+    requests.get(f"{url}/control?var=awb&val={1 if awb else 0}")
     return awb
+
+# Procesamiento de video
+def procesar_video(cap, known_face_encodings, known_face_names, serial_port):
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        frame = cv2.flip(frame, 1)
+        face_locations = face_recognition.face_locations(frame)
+
+        if face_locations:
+            for face_location in face_locations:
+                face_frame_encodings = face_recognition.face_encodings(frame, known_face_locations=[face_location])[0]
+
+                for i, known_face_encoding in enumerate(known_face_encodings):
+                    match = face_recognition.compare_faces([known_face_encoding], face_frame_encodings, tolerance=0.5)
+
+                    if match[0]:
+                        color = (0, 255, 0)  # Verde para coincidencia
+                        name = known_face_names[i]
+                        serial_port.write(b'H')
+                        # Verifica si el nombre ya ha sido detectado
+                        if name not in nombres_detectados:
+                            timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
+                            usuario = f"({timestamp})---{name}"
+                            USUARIOS.add(usuario)
+
+                            # Agrega el nombre al conjunto de nombres detectados
+                            nombres_detectados.add(name)
+                        break
+
+                else:
+                    color = (0, 0, 255)  # Rojo para no coincidencia
+
+                cv2.rectangle(frame, (face_location[3], face_location[0]), (face_location[1], face_location[2]), color, 2)
+        else:
+            serial_port.write(b'L')
+        cv2.imshow("Video", frame)
+
+        key = cv2.waitKey(3)
+
+        if key == 27:
+            break
 
 # Función inicio
 if __name__ == '__main__':
-    set_resolution(URL, index=8)
-    cap = cv2.VideoCapture(URL + ":81/stream")
+    serial_port = serial.Serial(SERIAL_PORT, 115200, timeout=1)
+    time.sleep(2)
+
+    # Obtener video
+    video_url = URL + PUERTO_STREAM
+    cap = cv2.VideoCapture(video_url)
+
     if not cap.isOpened():
-        print("No se puede abrir la camara")
+        print("No se puede abrir la cámara")
         exit()
 
-    while True:
-        
-        if cap.isOpened():
-            ret, frame = cap.read()
+    try:
+        # Ruta de la carpeta que contiene imágenes de referencia
+        folder_path = "D:/Repositories/Arduino-OpenCV/Images"
 
-            if ret == False:
-                break
+        # Cargar las codificaciones de referencia
+        known_face_encodings, known_face_names = codificar_rostros(folder_path)
 
-            frame = cv2.flip(frame, 1)
+        set_resolution(URL, index=8)
+        cap = cv2.VideoCapture(video_url)
+        procesar_video(cap, known_face_encodings, known_face_names, serial_port)
+    except Exception as e:
+        print(f"Error: {e}")
+        cap.release()
+        cv2.destroyAllWindows()
+        serial_port.close()
+        procesar_video()
+    finally:
+        cap.release()
+        cv2.destroyAllWindows()
+        serial_port.close()
 
-            face_locations = face_recognition.face_locations(frame)
-            cv2.imshow("Video", frame)
-            if face_locations:
-                for face_location in face_locations:
-                    face_frame_encodings = face_recognition.face_encodings(frame, known_face_locations=[face_location])[0]
+print("Nombres detectados:")
+for name in USUARIOS:
+    print(name)
 
-                    for i, known_face_encoding in enumerate(known_face_encodings):
-                        match = face_recognition.compare_faces([known_face_encoding], face_frame_encodings)
-
-                        if match[0]:
-                            color = (0, 255, 0)  # Verde para coincidencia
-                            name = known_face_names[i]
-                            serial.write(b'H')
-                            cv2.putText(frame, name, (face_location[3], face_location[0] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
-                            break
-                    else:
-                        color = (0, 0, 255)  # Rojo para no coincidencia
-
-                    cv2.rectangle(frame, (face_location[3], face_location[0]), (face_location[1], face_location[2]), color, 2)
-            else:
-                serial.write(b'L')
-            cv2.imshow("Video", frame)
-
-            key = cv2.waitKey(3)
-
-            # Presiona ESC para cerrar la ventana
-            if key == 27:
-                break
-cv2.destroyAllWindows()
-frame = None
-serial.close()
+generar_pdf()
