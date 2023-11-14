@@ -81,10 +81,9 @@ def Marcar_Asistencia(name):
 
 encodelistknown = find_encodings(images)
 print('Encoding Completado!!')
-
 def Maximo_Clases():
     # Encuentra el máximo número de clases (basado en las fechas)
-    max_clases = max(len(attendance) for attendance in asistencias_estudiantes.values())
+    max_clases = max(len(Asistencia) for Asistencia in asistencias_estudiantes.values())
     return max_clases
 
 def dias_con_max_asistencias():
@@ -98,12 +97,24 @@ def dias_con_max_asistencias():
     
     return dias_por_asistencia
 
+
+
 def Grafica_asistencias():
-    dias_asistencia = dias_con_max_asistencias()
-    plt.bar(dias_asistencia.keys(), dias_asistencia.values(), color='skyblue')
-    plt.xlabel('Número de Clases con Mayor Asistencia')
-    plt.ylabel('Número de Días')
-    plt.title('Días con Mayor Asistencia por Número de Clases')
+    dias = [str(day) for day in range(13, 18)]  # Días del 13 al 17 como strings
+    asistencias = [0 for _ in range(13, 18)]  # Inicializar las asistencias para cada día
+
+    for studiante in asistencias_estudiantes.values():
+        for asistencia in studiante:
+            fecha = asistencia['Fecha']
+            dia = fecha.split('-')[0]  # Extraer el día de la fecha
+            if dia in dias:
+                index = dias.index(dia)
+                asistencias[index] += 1
+
+    plt.bar(dias, asistencias, color='skyblue')
+    plt.xlabel('Días')
+    plt.ylabel('Asistencias Registradas')
+    plt.title('Asistencias por Día (13-17)')
     plt.show()
 
 Grafica_asistencias()
@@ -152,7 +163,7 @@ def mostrar_asistencias_estudiantes():
             print(f"- {asistencia}")
         print()
 
-show_attendance_statistics()
+
 # Al salir del bucle, preguntar al usuario de quién quiere ver la gráfica
 while True:
     estudiante_grafica = input("Ingrese el nombre del estudiante para ver la gráfica de asistencia (o escriba 'salir' para salir): ")
@@ -161,7 +172,7 @@ while True:
         break
     
     if estudiante_grafica in asistencias_estudiantes:
-        plot_attendance_over_time(estudiante_grafica)
+        Grafica_asistencias(estudiante_grafica)
         input("Presione Enter para continuar...")
     else:
         print("El estudiante no tiene registros de asistencia.")
