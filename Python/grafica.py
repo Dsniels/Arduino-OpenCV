@@ -4,13 +4,11 @@ asistencias_estudiantes = {
     'Daniel Salazar': [
         {'Fecha': '13-11-2023', 'Hora': '09:00:00'},
         {'Fecha': '14-11-2023', 'Hora': '09:15:00'},
-        {'Fecha': '15-11-2023', 'Hora': '10:30:00'},  
-        {'Fecha': '15-11-2023', 'Hora': '11:45:00'},  
+        {'Fecha': '15-11-2023', 'Hora': '10:30:00'},    
         {'Fecha': '17-11-2023', 'Hora': '08:20:00'},  
     ],
     'The Rock': [
         {'Fecha': '13-11-2023', 'Hora': '09:10:00'},
-        {'Fecha': '13-11-2023', 'Hora': '09:30:00'},  
         {'Fecha': '14-11-2023', 'Hora': '09:45:00'},  
         {'Fecha': '15-11-2023', 'Hora': '10:15:00'}, 
     ]
@@ -54,3 +52,35 @@ def Grafica_asistencias():
     plt.show()
 
 Grafica_asistencias()
+
+def plot_asistencias_individuales():
+    dias = [str(day) for day in range(13, 18)]  # Días del 13 al 17 como strings
+    fechas = set()  # Conjunto para almacenar fechas únicas
+
+    for attendance_list in asistencias_estudiantes.values():
+        for asistencia in attendance_list:
+            fecha = asistencia['Fecha']
+            fechas.add(fecha)  # Almacenar fechas únicas en el conjunto
+
+    max_clases = len(fechas)  # Determinar el total de fechas como el máximo de clases
+
+    for student, attendance_list in asistencias_estudiantes.items():
+        asistencias = [0 for _ in range(13, 18)]  # Inicializar las asistencias para el estudiante
+
+        for asistencia in attendance_list:
+            fecha = asistencia['Fecha']
+            dia = fecha.split('-')[0]  # Extraer el día de la fecha
+            if dia in dias:
+                index = dias.index(dia)
+                asistencias[index] += 1
+
+        plt.plot(dias, asistencias, marker='o', label=student)  # Graficar las asistencias por día para el estudiante
+
+    plt.xlabel('Días')
+    plt.ylabel('Asistencias Registradas')
+    plt.title('Asistencias Individuales por Estudiante')
+    plt.legend()
+    plt.yticks(range(max_clases + 1))  # Establecer los valores del eje y como enteros
+    plt.show()
+
+plot_asistencias_individuales()
