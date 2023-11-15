@@ -86,8 +86,6 @@ def procesar_video(cap, known_face_encodings, known_face_names, serial_port):
         ret, frame = cap.read()
         if not ret:
             break
-
-        frame = cv2.flip(frame, 1)
         face_locations = face_recognition.face_locations(frame)
 
         if face_locations:
@@ -101,12 +99,12 @@ def procesar_video(cap, known_face_encodings, known_face_names, serial_port):
                         color = (0, 255, 0)  # Verde para coincidencia
                         name = known_face_names[i]
                         serial_port.write(b'H')
+                        serial_port.write(name.encode())
                         # Verifica si el nombre ya ha sido detectado
                         if name not in nombres_detectados:
                             timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
                             usuario = f"({timestamp})---{name}"
                             USUARIOS.add(usuario)
-
                             # Agrega el nombre al conjunto de nombres detectados
                             nombres_detectados.add(name)
                         break
@@ -126,16 +124,21 @@ def procesar_video(cap, known_face_encodings, known_face_names, serial_port):
 
 # Función inicio
 if __name__ == '__main__':
-    serial_port = serial.Serial(SERIAL_PORT, 115200, timeout=1)
-    time.sleep(2)
-
+    
     # Obtener video
     video_url = URL + PUERTO_STREAM
+    print(f"Conectando Camara")
     cap = cv2.VideoCapture(video_url)
+    print(f"Camara Conectada")
 
     if not cap.isOpened():
         print("No se puede abrir la cámara")
         exit()
+    
+    print(f"Conectando Puerto Serial")
+    serial_port = serial.Serial(SERIAL_PORT, 115200, timeout=1)
+    time.sleep(2)
+    print(f"Puerto Serial Conectado")
 
     try:
         # Ruta de la carpeta que contiene imágenes de referencia
@@ -158,8 +161,9 @@ if __name__ == '__main__':
         cv2.destroyAllWindows()
         serial_port.close()
 
-print("Nombres detectados:")
-for name in USUARIOS:
-    print(name)
+if USUARIOS:
+    print("Nombres detectados:")
+    for name in USUARIOS:
+        print(name)
 
-generar_pdf()
+    generar_pdf()
