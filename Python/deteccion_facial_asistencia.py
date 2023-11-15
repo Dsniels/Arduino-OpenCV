@@ -7,11 +7,8 @@ import requests
 import matplotlib.pyplot as plt
 
 
-# ESP32-CAM IP address
-esp32cam_url = 'http://192.168.1.21/640x480.jpg'
+esp32cam_url = 'http://192.168.1.151/640x480.jpg'
 
-
-# Function to fetch images from ESP32-CAM
 def get_esp32cam_image():
     try:
         response = requests.get(esp32cam_url, timeout=10)
@@ -23,18 +20,17 @@ def get_esp32cam_image():
         print(f"Error fetching image from ESP32-CAM: {str(e)}")
     return None
 
+
+
 asistencias_estudiantes = {
-    'Juan': [
-        {'Fecha': '13-11-2023', 'Hora': '09:00:00'},
-        {'Fecha': '14-11-2023', 'Hora': '09:15:00'}
+    'JUAN': [
+        {'Fecha': '13-11-23', 'Hora': '09:00:00'},
+        {'Fecha': '14-11-23', 'Hora': '09:15:00'}
     ],
-    'María': [
-        {'Fecha': '13-11-2023', 'Hora': '09:10:00'}
+    'MARIA': [
+        {'Fecha': '13-11-23', 'Hora': '09:10:00'}
     ]
 }
-
-
-
 path = 'Images'
 images = []
 classNames = []
@@ -45,6 +41,8 @@ for cl in mylist:
     images.append(curImg)
     classNames.append(os.path.splitext(cl)[0])
 print(classNames)
+
+
 
 
 def find_encodings(images):
@@ -59,11 +57,10 @@ def find_encodings(images):
     return encodeList
 
 
+
 def Marcar_Asistencia(name):
-
     now = datetime.now()
-
-    fecha = now.strftime('%y-%m-%d')
+    fecha = now.strftime('%d-%m-%y')
     hora = now.strftime('%H:%M:%S')
 
     with open('Lista.csv', 'r+') as f:
@@ -74,17 +71,31 @@ def Marcar_Asistencia(name):
             nameList.append(entry[0])
         if name not in nameList:
             f.writelines(f'\n{name},{fecha},{hora}')
-        if name not in asistencias_estudiantes:
-            asistencias_estudiantes[name] = []
+
+    if name not in asistencias_estudiantes:
+        asistencias_estudiantes[name] = []
+
+
+    for asistencia in asistencias_estudiantes[name]:
+        if asistencia['Fecha'] == fecha:
+            asistencia['Hora'] = hora
+            break
+    else:
         asistencias_estudiantes[name].append({'Fecha': fecha, 'Hora': hora})
+
+
 
 
 encodelistknown = find_encodings(images)
 print('Encoding Completado!!')
+
+
 def Maximo_Clases():
     # Encuentra el máximo número de clases (basado en las fechas)
     max_clases = max(len(Asistencia) for Asistencia in asistencias_estudiantes.values())
     return max_clases
+
+
 
 def dias_con_max_asistencias():
     max_clases_totales = Maximo_Clases()
@@ -97,16 +108,44 @@ def dias_con_max_asistencias():
     
     return dias_por_asistencia
 
+def plot_asistencias_individuales():
+    dias = [str(day) for day in range(13, 18)]  
+    fechas = set() 
+
+    for attendance_list in asistencias_estudiantes.values():
+        for asistencia in attendance_list:
+            fecha = asistencia['Fecha']
+            fechas.add(fecha)  # Almacenar fechas únicas en el conjunto
+
+    max_clases = len(fechas)  
+
+    for student, attendance_list in asistencias_estudiantes.items():
+        asistencias = [0 for _ in range(13, 18)]
+        for asistencia in attendance_list:
+            fecha = asistencia['Fecha']
+            dia = fecha.split('-')[0]  
+            if dia in dias:
+                index = dias.index(dia)
+                asistencias[index] += 1
+
+        plt.plot(dias, asistencias, marker='o', label=student) 
+
+    plt.xlabel('Días')
+    plt.ylabel('Asistencias Registradas')
+    plt.title('Asistencias Individuales por Estudiante')
+    plt.legend()
+    plt.yticks(range(max_clases + 1)) 
+    plt.show()
 
 
 def Grafica_asistencias():
-    dias = [str(day) for day in range(13, 18)]  # Días del 13 al 17 como strings
-    asistencias = [0 for _ in range(13, 18)]  # Inicializar las asistencias para cada día
+    dias = [str(day) for day in range(12, 18)] 
+    asistencias = [0 for _ in range(12, 18)]  
 
     for studiante in asistencias_estudiantes.values():
         for asistencia in studiante:
             fecha = asistencia['Fecha']
-            dia = fecha.split('-')[0]  # Extraer el día de la fecha
+            dia = fecha.split('-')[0] 
             if dia in dias:
                 index = dias.index(dia)
                 asistencias[index] += 1
@@ -117,11 +156,11 @@ def Grafica_asistencias():
     plt.title('Asistencias por Día (13-17)')
     plt.show()
 
-Grafica_asistencias()
+
 
 
 while True:
-    # Capture an image from ESP32-CAM
+
     img = get_esp32cam_image()
 
     if img is not None:
@@ -134,24 +173,23 @@ while True:
         for encodeFace, faceLoc in zip(encodesCurFrame, faceCurFrame):
             matches = face_recognition.compare_faces(encodelistknown, encodeFace)
             faceDis = face_recognition.face_distance(encodelistknown, encodeFace)
-            print(faceDis)
             matchIndex = np.argmin(faceDis)
-
+            y1, x2, y2, x1 = faceLoc
+            y1, x2, y2, x1 = y1 * 4, x2 * 4, y2 * 4, x1 * 4
             if matches[matchIndex]:
                 name = classNames[matchIndex].upper()
-                print(name)
-                y1, x2, y2, x1 = faceLoc
-                y1, x2, y2, x1 = y1 * 4, x2 * 4, y2 * 4, x1 * 4
                 cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0), 2)
                 cv2.rectangle(img, (x1, y2 - 35), (x2, y2), (0, 255, 0), cv2.FILLED)
                 cv2.putText(img, name, (x1 + 6, y2 - 6), cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 2)
                 Marcar_Asistencia(name)
+            else:
+                cv2.rectangle(img, (x1, y1), (x2, y2), (0, 0, 255), 3)
 
         cv2.imshow('ESP32-CAM', img)
         key = cv2.waitKey(1)
         if key == 27:
             break
-        # Cerrar la ventana de visualización de OpenCV
+
 cv2.destroyAllWindows()
 
 
@@ -164,17 +202,37 @@ def mostrar_asistencias_estudiantes():
         print()
 
 
-# Al salir del bucle, preguntar al usuario de quién quiere ver la gráfica
-while True:
-    estudiante_grafica = input("Ingrese el nombre del estudiante para ver la gráfica de asistencia (o escriba 'salir' para salir): ")
 
-    if estudiante_grafica.lower() == 'salir':
+
+def menu():
+    print("MENU")
+    print("1. Grafica de asistencias por dia")
+    print("2. Grafica de asistencias individuales")
+    print("3. Escriba 0 para salir")
+
+def Opcion1():
+    Grafica_asistencias()
+
+def Opcion2():
+    plot_asistencias_individuales()
+
+
+MENU = {
+    1: Opcion1,
+    2: Opcion2
+}
+
+
+menu()
+
+while True:
+
+
+    Eleccion =  int(input("Eliga una opcion a realizar: "))
+    if Eleccion == 0:
         break
-    
-    if estudiante_grafica in asistencias_estudiantes:
-        Grafica_asistencias(estudiante_grafica)
-        input("Presione Enter para continuar...")
     else:
-        print("El estudiante no tiene registros de asistencia.")
+        func = MENU.get(Eleccion)
+        func()
 
 print("¡Hasta luego!")
