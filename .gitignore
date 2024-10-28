@@ -1,3 +1,5 @@
 
-./Python/entorno_virtual/
-./Python/env
+Python/entorno_virtual/
+Python/env
+API/Images
+API/__pycache__
