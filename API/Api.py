@@ -110,8 +110,7 @@ def read_root():
 @app.post("/recognize")
 async def recognize(file: UploadFile = File(...)):
     try:
-        print(classNames)
-        print(encodelistknown)
+
         if not file.content_type.startswith('image/'):
             return {"status": "fail", "message": "El archivo no es una imagen válida"}
 
@@ -119,13 +118,9 @@ async def recognize(file: UploadFile = File(...)):
         np_img = np.frombuffer(img, np.uint8)
         img_np = cv2.imdecode(np_img, cv2.IMREAD_COLOR)
 
-        if img_np is None:
-            return {"status": "fail", "message": "Error al decodificar la imagen"}
-        if img_np.shape[0] < img_np.shape[1]: 
-            img_np = cv2.rotate(img_np, cv2.ROTATE_90_CLOCKWISE)  
 
-        imgS = cv2.resize(img_np, (0, 0), None, 0.25, 0.25)
-        imgS = cv2.cvtColor(imgS, cv2.COLOR_BGR2RGB)
+        # imgS = cv2.resize(img_np, (0, 0), None, 0.25, 0.25)
+        imgS = cv2.cvtColor(img_np, cv2.COLOR_BGR2RGB)
 
         faceCurFrame = face_recognition.face_locations(imgS, model='hog')
         encodesCurFrame = face_recognition.face_encodings(imgS, faceCurFrame)
