@@ -32,7 +32,8 @@ app.add_middleware(
 
 
 images = []
-path = './Images'
+#path = './Images'
+path = 'D:\Repositorios\Arduino-OpenCVPython\API\Images'
 
 classNames = []
 mylist = os.listdir(path)
@@ -42,7 +43,6 @@ print(f"Imágenes encontradas: {mylist}")
 def find_encodings(images):
     encodeList = []
     validClassNames = []
-    print(images)
     for img, name in zip(images, classNames):
         print(f"Procesando imagen: {name}")
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
@@ -69,6 +69,45 @@ if not encodelistknown:
     save_encodings_and_names(encodelistknown, classNames)
 
 print("Encodings cargados o generados")
+
+@app.put("/edit")
+async def update(currentName : str = Form(...), newName:str=Form(...)):
+    try:
+        print(currentName in classNames)
+        if currentName in classNames:
+            index = classNames.index(currentName)
+            print(classNames)
+            print(newName)
+            classNames[index] = newName
+            print(classNames)
+
+            save_encodings_and_names(encodelistknown, classNames)
+            #os.rename(f'{path}/{currentName}.jpg',f'{path}/{newName}.jpg')
+            return {"status":"success", "message":"Usuario Actualizado"}
+        else:
+            return {"status":"fail", "message": "Usuario No encontrado"}
+    except Exception as e:
+        return {"status":"fail", "message":str(e)}
+
+
+
+@app.post("/delete_user")
+async def delete_user(nombre: str = Form(...)):
+    try:
+        if nombre in classNames:
+            index = classNames.index(nombre)
+            print(classNames)
+            classNames.pop(index)
+            encodelistknown.pop(index)
+            print(classNames)
+            save_encodings_and_names(encodelistknown, classNames)
+            os.remove(f'{path}/{nombre}.jpg')
+            return {"status": "success", "message": "Usuario eliminado"}
+        else:
+            return {"status": "fail", "message": "Usuario no encontrado"}
+    except Exception as e:
+        return {"status": "fail", "message": str(e)}
+
 
 
 
