@@ -32,8 +32,8 @@ app.add_middleware(
 
 
 images = []
-#path = './Images'
-path = 'D:\Repositorios\Arduino-OpenCVPython\API\Images'
+path = './Images'
+# path = 'D:\Repositorios\Arduino-OpenCVPython\API\Images'
 
 classNames = []
 mylist = os.listdir(path)
